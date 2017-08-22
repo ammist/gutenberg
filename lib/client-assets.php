@@ -170,6 +170,35 @@ function gutenberg_register_scripts_and_styles() {
 add_action( 'init', 'gutenberg_register_scripts_and_styles' );
 
 /**
+ * Append result of internal request to REST API for purpose of preloading
+ * data to be attached to the page. Expected to be called in the context of
+ * `array_reduce`.
+ *
+ * @param  array  $memo Reduce accumulator.
+ * @param  string $path REST API path to preload.
+ * @return array        Modified reduce accumulator.
+ */
+function gutenberg_preload_api_request( $memo, $path ) {
+	$path_parts = parse_url( $path );
+
+	$request = new WP_REST_Request( 'GET', $path_parts['path'] );
+	if ( ! empty( $path_parts['query'] ) ) {
+		parse_str( $path_parts['query'], $query_params );
+		$request->set_query_params( $query_params );
+	}
+
+	$response = rest_do_request( $request );
+	if ( 200 === $response->status ) {
+		$memo[ $path ] = array(
+			'body'    => $response->data,
+			'headers' => $response->headers,
+		);
+	}
+
+	return $memo;
+}
+
+/**
  * Registers vendor JavaScript files to be used as dependencies of the editor
  * and plugins.
  *
@@ -657,6 +686,22 @@ function gutenberg_editor_scripts_and_styles( $hook ) {
 			'rendered' => apply_filters( 'the_title', $default_title, $post_id ),
 		);
 	}
+
+	// Preload common data.
+	$preload_paths = array();
+	if ( $post_id ) {
+		$preload_paths[] = sprintf( '/wp/v2/posts/%d/revisions', $post_id );
+	}
+	$preload_data = array_reduce(
+		$preload_paths,
+		'gutenberg_preload_api_request',
+		array()
+	);
+	wp_add_inline_script(
+		'wp-components',
+		sprintf( 'window._wpAPIDataPreload = %s', wp_json_encode( $preload_data ) ),
+		'before'
+	);
 
 	// Initialize the post data.
 	wp_add_inline_script(
