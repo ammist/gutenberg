@@ -13,14 +13,20 @@ import { PanelBody, PanelRow, withInstanceId } from '@wordpress/components';
 /**
  * Internal dependencies
  */
-import { editPost } from '../../actions';
-import { getCurrentPostType, getEditedPostAttribute } from '../../selectors';
+import { editPost, toggleSidebarPanel } from '../../actions';
+import { getCurrentPostType, getEditedPostAttribute, isEditorSidebarPanelOpened } from '../../selectors';
+
+/**
+ * Module Constants
+ */
+const PANEL_NAME = 'page-attributes';
 
 export class PageAttributes extends Component {
 	constructor() {
 		super( ...arguments );
 
 		this.setUpdatedOrder = this.setUpdatedOrder.bind( this );
+		this.onToggle = this.onToggle.bind( this );
 
 		this.state = {
 			supportsPageAttributes: false,
@@ -57,8 +63,12 @@ export class PageAttributes extends Component {
 		}
 	}
 
+	onToggle() {
+		this.props.toggleSidebarPanel( PANEL_NAME );
+	}
+
 	render() {
-		const { instanceId, order } = this.props;
+		const { instanceId, order, isOpened } = this.props;
 		const { supportsPageAttributes } = this.state;
 
 		// Only render fields if post type supports page attributes
@@ -72,7 +82,8 @@ export class PageAttributes extends Component {
 		return (
 			<PanelBody
 				title={ __( 'Page Attributes' ) }
-				initialOpen={ false }
+				opened={ isOpened }
+				onToggle={ this.onToggle }
 			>
 				<PanelRow>
 					<label htmlFor={ inputId }>
@@ -95,15 +106,15 @@ export default connect(
 		return {
 			postTypeSlug: getCurrentPostType( state ),
 			order: getEditedPostAttribute( state, 'menu_order' ),
+			isOpened: isEditorSidebarPanelOpened( state, PANEL_NAME ),
 		};
 	},
-	( dispatch ) => {
-		return {
-			onUpdateOrder( order ) {
-				dispatch( editPost( {
-					menu_order: order,
-				} ) );
-			},
-		};
+	{
+		onUpdateOrder( order ) {
+			return editPost( {
+				menu_order: order,
+			} );
+		},
+		toggleSidebarPanel,
 	}
 )( withInstanceId( PageAttributes ) );

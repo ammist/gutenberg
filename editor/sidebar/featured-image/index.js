@@ -15,8 +15,13 @@ import { MediaUploadButton } from '@wordpress/blocks';
  * Internal dependencies
  */
 import './style.scss';
-import { getEditedPostAttribute } from '../../selectors';
-import { editPost } from '../../actions';
+import { getEditedPostAttribute, isEditorSidebarPanelOpened } from '../../selectors';
+import { editPost, toggleSidebarPanel } from '../../actions';
+
+/**
+ * Module Constants
+ */
+const PANEL_NAME = 'featured-image';
 
 class FeaturedImage extends Component {
 	constructor() {
@@ -25,6 +30,7 @@ class FeaturedImage extends Component {
 			media: null,
 			loading: false,
 		};
+		this.onToggle = this.onToggle.bind( this );
 	}
 
 	componentDidMount() {
@@ -70,12 +76,16 @@ class FeaturedImage extends Component {
 			} );
 	}
 
+	onToggle() {
+		this.props.toggleSidebarPanel( PANEL_NAME );
+	}
+
 	render() {
-		const { featuredImageId, onUpdateImage, onRemoveImage } = this.props;
+		const { featuredImageId, onUpdateImage, onRemoveImage, isOpened } = this.props;
 		const { media, loading } = this.state;
 
 		return (
-			<PanelBody title={ __( 'Featured image' ) } initialOpen={ false }>
+			<PanelBody title={ __( 'Featured image' ) } opened={ isOpened } onToggle={ this.onToggle }>
 				<div className="editor-featured-image__content">
 					{ !! featuredImageId &&
 						<MediaUploadButton
@@ -123,16 +133,16 @@ export default connect(
 	( state ) => {
 		return {
 			featuredImageId: getEditedPostAttribute( state, 'featured_media' ),
+			isOpened: isEditorSidebarPanelOpened( state, PANEL_NAME ),
 		};
 	},
-	( dispatch ) => {
-		return {
-			onUpdateImage( image ) {
-				dispatch( editPost( { featured_media: image.id } ) );
-			},
-			onRemoveImage() {
-				dispatch( editPost( { featured_media: null } ) );
-			},
-		};
+	{
+		onUpdateImage( image ) {
+			return editPost( { featured_media: image.id } );
+		},
+		onRemoveImage() {
+			return editPost( { featured_media: null } );
+		},
+		toggleSidebarPanel,
 	}
 )( FeaturedImage );
